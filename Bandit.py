@@ -12,6 +12,17 @@ logger.setLevel(logging.DEBUG)
 class Bandit(ABC):
     """
     Abstract base class for bandit algorithms.
+
+    This class provides the structure for implementing bandit algorithms.
+    All subclasses must implement the abstract methods.
+
+    Methods:
+        __init__: Initialize the bandit with a given true reward probability.
+        __repr__: Provide a string representation of the bandit.
+        pull: Simulate pulling the bandit's arm to get a reward.
+        update: Update the bandit's internal state based on received reward.
+        experiment: Class method to run a full experiment.
+        report: Class method to generate a report, save results, and visualize data.
     """
 
     @abstractmethod
@@ -43,10 +54,23 @@ class Bandit(ABC):
 class Visualization():
     """
     Visualization methods for plotting results of bandit experiments.
+
+    Provides a combined 2x2 plot to visualize average rewards and cumulative regrets
+    in both linear and log scales.
     """
 
     @staticmethod
     def plot_combined(rewards, regrets, num_trials, optimal_bandit_reward, method_name):
+        """
+        Generate combined plots for average rewards and cumulative regrets.
+
+        Parameters:
+            rewards (list): List of rewards obtained during the experiment.
+            regrets (list): List of regrets computed during the experiment.
+            num_trials (int): Total number of trials in the experiment.
+            optimal_bandit_reward (float): True reward of the optimal bandit.
+            method_name (str): Name of the algorithm being visualized.
+        """
         cumulative_rewards = np.cumsum(rewards)
         average_reward = cumulative_rewards / (np.arange(num_trials) + 1)
         cumulative_regrets = optimal_bandit_reward * np.arange(1, num_trials + 1) - cumulative_rewards
@@ -85,15 +109,28 @@ class Visualization():
         plt.show()
 
 class EpsilonGreedy(Bandit):
+    """
+    Implementation of the Epsilon-Greedy algorithm for the multi-armed bandit problem.
+    """
+
     def __init__(self, p):
         self.p = p
         self.p_estimate = 0
         self.N = 0
 
     def pull(self):
+        """
+        Simulate pulling the bandit's arm, returning a reward sampled from a normal distribution.
+        """
         return np.random.randn() + self.p
 
     def update(self, x):
+        """
+        Update the bandit's estimated reward and pull count based on the observed reward.
+
+        Parameters:
+            x (float): The observed reward.
+        """
         self.N += 1
         self.p_estimate = ((self.N - 1) * self.p_estimate + x) / self.N
 
@@ -102,6 +139,18 @@ class EpsilonGreedy(Bandit):
 
     @classmethod
     def experiment(cls, bandit_probabilities, num_trials, initial_epsilon=0.1, min_epsilon=0.02):
+        """
+        Conduct an experiment using the Epsilon-Greedy algorithm.
+
+        Parameters:
+            bandit_probabilities (list): List of true means for each bandit.
+            num_trials (int): Number of trials to run.
+            initial_epsilon (float): Initial exploration rate.
+            min_epsilon (float): Minimum exploration rate.
+
+        Returns:
+            tuple: List of bandits and list of rewards obtained.
+        """
         bandits = [cls(p) for p in bandit_probabilities]
         rewards = []
         optimal_bandit = np.argmax([b.p for b in bandits])
@@ -121,6 +170,13 @@ class EpsilonGreedy(Bandit):
 
     @classmethod
     def report(cls, bandit_probabilities, num_trials):
+        """
+        Generate a report for the Epsilon-Greedy experiment.
+
+        Parameters:
+            bandit_probabilities (list): List of true means for each bandit.
+            num_trials (int): Number of trials to run.
+        """
         bandits, rewards = cls.experiment(bandit_probabilities, num_trials)
         optimal_bandit_reward = max(bandit_probabilities)
 
@@ -137,6 +193,10 @@ class EpsilonGreedy(Bandit):
         Visualization.plot_combined(rewards, rewards, num_trials, optimal_bandit_reward, "Epsilon Greedy")
 
 class ThompsonSampling(Bandit):
+    """
+    Implementation of the Thompson Sampling algorithm for the multi-armed bandit problem.
+    """
+
     def __init__(self, m):
         self.m = m
         self.m_estimate = 0
@@ -146,12 +206,24 @@ class ThompsonSampling(Bandit):
         self.N = 0
 
     def pull(self):
+        """
+        Simulate pulling the bandit's arm, returning a reward sampled from a normal distribution.
+        """
         return np.random.randn() / np.sqrt(self.tau) + self.m
 
     def sample(self):
+        """
+        Sample from the posterior distribution of the bandit's mean reward.
+        """
         return np.random.randn() / np.sqrt(self.lambda_) + self.m_estimate
 
     def update(self, x):
+        """
+        Update the posterior distribution parameters based on the observed reward.
+
+        Parameters:
+            x (float): The observed reward.
+        """
         self.N += 1
         self.sum_x += x
         self.lambda_ += self.tau
@@ -162,6 +234,16 @@ class ThompsonSampling(Bandit):
 
     @classmethod
     def experiment(cls, bandit_probabilities, num_trials):
+        """
+        Conduct an experiment using the Thompson Sampling algorithm.
+
+        Parameters:
+            bandit_probabilities (list): List of true means for each bandit.
+            num_trials (int): Number of trials to run.
+
+        Returns:
+            tuple: List of bandits and list of rewards obtained.
+        """
         bandits = [cls(p) for p in bandit_probabilities]
         rewards = []
 
@@ -175,6 +257,13 @@ class ThompsonSampling(Bandit):
 
     @classmethod
     def report(cls, bandit_probabilities, num_trials):
+        """
+        Generate a report for the Thompson Sampling experiment.
+
+        Parameters:
+            bandit_probabilities (list): List of true means for each bandit.
+            num_trials (int): Number of trials to run.
+        """
         bandits, rewards = cls.experiment(bandit_probabilities, num_trials)
         optimal_bandit_reward = max(bandit_probabilities)
 
@@ -190,7 +279,15 @@ class ThompsonSampling(Bandit):
 
         Visualization.plot_combined(rewards, rewards, num_trials, optimal_bandit_reward, "Thompson Sampling")
 
+
 def comparison(bandit_rewards, num_trials):
+    """
+    Compare the performance of Epsilon-Greedy and Thompson Sampling algorithms.
+
+    Parameters:
+        bandit_rewards (list): List of true means for each bandit.
+        num_trials (int): Number of trials to run.
+    """
     eg_bandits, eg_rewards = EpsilonGreedy.experiment(bandit_rewards, num_trials)
     ts_bandits, ts_rewards = ThompsonSampling.experiment(bandit_rewards, num_trials)
 
