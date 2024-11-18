@@ -176,7 +176,7 @@ class EpsilonGreedy(Bandit):
         bandits = [cls(p) for p in bandit_probabilities]
         rewards = []
         optimal_bandit = np.argmax([b.p for b in bandits])
-
+        num_optimal = 0
         for i in range(1, num_trials + 1):
             epsilon = max(initial_epsilon / i, min_epsilon)
             if np.random.random() < epsilon:
@@ -189,7 +189,7 @@ class EpsilonGreedy(Bandit):
             bandits[chosen_bandit].update(reward)
 
             if chosen_bandit == optimal_bandit:
-                num_times_chosen_optimal += 1
+                num_optimal += 1
 
         return bandits, rewards
 
