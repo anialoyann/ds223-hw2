@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import matplotlib.pyplot as plt
 import csv
+from scipy.stats import norm
 
 # Logger setup
 logging.basicConfig()
@@ -72,24 +73,24 @@ class Visualization():
             method_name (str): Name of the algorithm being visualized.
         """
         cumulative_rewards = np.cumsum(rewards)
-        average_reward = cumulative_rewards / (np.arange(num_trials) + 1)
+        #average_reward = cumulative_rewards / (np.arange(num_trials) + 1)
         cumulative_regrets = optimal_bandit_reward * np.arange(1, num_trials + 1) - cumulative_rewards
 
         fig, ax = plt.subplots(2, 2, figsize=(12, 10))
 
-        ax[0, 0].plot(average_reward, label="Average Reward")
+        ax[0, 0].plot(cumulative_rewards, label="Cumulative Reward")
         ax[0, 0].axhline(optimal_bandit_reward, color="g", linestyle="--", label="Optimal Bandit Reward")
         ax[0, 0].legend()
-        ax[0, 0].set_title(f"{method_name}: Average Reward (Linear Scale)")
+        ax[0, 0].set_title(f"{method_name}: Cumulative Reward (Linear Scale)")
         ax[0, 0].set_xlabel("Number of Trials")
-        ax[0, 0].set_ylabel("Average Reward")
+        ax[0, 0].set_ylabel("Cumulative Reward")
 
-        ax[0, 1].plot(average_reward, label="Average Reward")
+        ax[0, 1].plot(cumulative_rewards, label="Cumulative Reward")
         ax[0, 1].axhline(optimal_bandit_reward, color="g", linestyle="--", label="Optimal Bandit Reward")
         ax[0, 1].legend()
-        ax[0, 1].set_title(f"{method_name}: Average Reward (Log Scale)")
+        ax[0, 1].set_title(f"{method_name}: Cumulative Reward (Log Scale)")
         ax[0, 1].set_xlabel("Number of Trials")
-        ax[0, 1].set_ylabel("Average Reward")
+        ax[0, 1].set_ylabel("Cumulative Reward")
         ax[0, 1].set_yscale("log")
 
         ax[1, 0].plot(cumulative_regrets, label="Cumulative Regret")
@@ -106,6 +107,25 @@ class Visualization():
         ax[1, 1].set_yscale("log")
 
         plt.tight_layout()
+        plt.show()
+
+    @staticmethod
+    def plot_bandit_distributions(bandits, trial):
+        """
+        Plot the posterior distributions of bandits after a specific number of trials.
+
+        Parameters:
+            bandits (list): List of bandit objects.
+            trial (int): The current trial number.
+        """
+        x = np.linspace(-3, 6, 200)
+        for b in bandits:
+            y = norm.pdf(x, b.m_estimate, np.sqrt(1. / b.lambda_))
+            plt.plot(x, y, label=f"Bandit (True Mean: {b.m:.2f}, Pulled: {b.N})")
+        plt.title(f"Posterior Distributions after {trial} Trials")
+        plt.xlabel("Mean Estimate")
+        plt.ylabel("Density")
+        plt.legend()
         plt.show()
 
 class EpsilonGreedy(Bandit):
@@ -139,6 +159,7 @@ class EpsilonGreedy(Bandit):
 
     @classmethod
     def experiment(cls, bandit_probabilities, num_trials, initial_epsilon=0.1, min_epsilon=0.02):
+        
         """
         Conduct an experiment using the Epsilon-Greedy algorithm.
 
@@ -151,6 +172,7 @@ class EpsilonGreedy(Bandit):
         Returns:
             tuple: List of bandits and list of rewards obtained.
         """
+
         bandits = [cls(p) for p in bandit_probabilities]
         rewards = []
         optimal_bandit = np.argmax([b.p for b in bandits])
@@ -165,6 +187,9 @@ class EpsilonGreedy(Bandit):
             reward = bandits[chosen_bandit].pull()
             rewards.append(reward)
             bandits[chosen_bandit].update(reward)
+
+            if chosen_bandit == optimal_bandit:
+                num_times_chosen_optimal += 1
 
         return bandits, rewards
 
@@ -247,11 +272,16 @@ class ThompsonSampling(Bandit):
         bandits = [cls(p) for p in bandit_probabilities]
         rewards = []
 
-        for _ in range(num_trials):
+        sample_points = [5, 10, 20, 50, 100, 200, 500, 1000, 1500, num_trials - 1]
+
+        for i in range(num_trials):
             chosen_bandit = np.argmax([b.sample() for b in bandits])
             reward = bandits[chosen_bandit].pull()
             rewards.append(reward)
             bandits[chosen_bandit].update(reward)
+
+            if i in sample_points:
+                Visualization.plot_bandit_distributions(bandits, i)
 
         return bandits, rewards
 
